@@ -1,0 +1,263 @@
+import React, { useState, useRef, useEffect } from 'react';
+import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+import { saveAs } from 'file-saver';
+import './ImageEditor.css';
+
+const ImageEditor: React.FC = () => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Crop>({
+    unit: '%',
+    width: 100,
+    height: 100,
+    x: 0,
+    y: 0
+  });
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+  const [width, setWidth] = useState<number>(0);
+  const [height, setHeight] = useState<number>(0);
+  const [originalWidth, setOriginalWidth] = useState<number>(0);
+  const [originalHeight, setOriginalHeight] = useState<number>(0);
+  const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
+  const [lockAspectRatio, setLockAspectRatio] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<string>('');
+  
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  // 选择图片文件
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      const file = event.target.files[0];
+      setSelectedFile(file);
+      
+      // 创建图片URL
+      const objectUrl = URL.createObjectURL(file);
+      setImageUrl(objectUrl);
+      
+      // 重置裁剪设置
+      setCrop({
+        unit: '%',
+        width: 100,
+        height: 100,
+        x: 0,
+        y: 0
+      });
+      
+      // 清理之前的图片URL
+      return () => {
+        URL.revokeObjectURL(objectUrl);
+      };
+    }
+  };
+
+  // 图片加载完成后的处理
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    imgRef.current = img;
+    
+    setOriginalWidth(img.width);
+    setOriginalHeight(img.height);
+    setWidth(img.width);
+    setHeight(img.height);
+  };
+
+  // 当宽度或高度手动更改时更新
+  useEffect(() => {
+    if (lockAspectRatio && aspectRatio && originalWidth && originalHeight) {
+      if (width !== originalWidth) {
+        setHeight(Math.round(width / aspectRatio));
+      } else if (height !== originalHeight) {
+        setWidth(Math.round(height * aspectRatio));
+      }
+    }
+  }, [width, height, aspectRatio, lockAspectRatio, originalWidth, originalHeight]);
+
+  // 当图片加载时设置宽高比
+  useEffect(() => {
+    if (originalWidth && originalHeight) {
+      setAspectRatio(originalWidth / originalHeight);
+    }
+  }, [originalWidth, originalHeight]);
+
+  // 处理尺寸输入变化
+  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newWidth = parseInt(e.target.value) || 0;
+    setWidth(newWidth);
+  };
+
+  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newHeight = parseInt(e.target.value) || 0;
+    setHeight(newHeight);
+  };
+
+  // 切换宽高比锁定
+  const toggleAspectRatio = () => {
+    setLockAspectRatio(!lockAspectRatio);
+  };
+
+  // 保存编辑后的图片
+  const saveImage = () => {
+    if (!imgRef.current) return;
+
+    setSaveStatus('保存中...');
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      setSaveStatus('保存失败: 无法创建画布上下文');
+      return;
+    }
+    
+    // 设置canvas尺寸为目标尺寸
+    canvas.width = width;
+    canvas.height = height;
+    
+    // 根据是否有裁剪区域决定绘制方式
+    if (completedCrop && completedCrop.width && completedCrop.height) {
+      // 当有裁剪区域时，绘制裁剪区域并调整大小
+      ctx.drawImage(
+        imgRef.current,
+        completedCrop.x,
+        completedCrop.y,
+        completedCrop.width,
+        completedCrop.height,
+        0,
+        0,
+        width,
+        height
+      );
+    } else {
+      // 当没有裁剪区域时，直接调整整个图片大小
+      ctx.drawImage(
+        imgRef.current,
+        0,
+        0,
+        imgRef.current.naturalWidth,
+        imgRef.current.naturalHeight,
+        0,
+        0,
+        width,
+        height
+      );
+    }
+    
+    // 将canvas转换为blob并保存，明确指定图片格式和质量
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          setSaveStatus('保存失败: 无法创建图片数据');
+          console.error('Canvas toBlob failed');
+          return;
+        }
+        
+        // 使用原文件名，但添加尺寸信息和时间戳
+        const fileExt = selectedFile ? selectedFile.name.split('.').pop() : 'png';
+        const fileName = selectedFile ? 
+          `${selectedFile.name.split('.')[0]}_${width}x${height}_${new Date().getTime()}.${fileExt}` : 
+          `image_${width}x${height}_${new Date().getTime()}.png`;
+        
+        try {
+          saveAs(blob, fileName);
+          setSaveStatus('保存成功!');
+          
+          // 3秒后清除状态提示
+          setTimeout(() => {
+            setSaveStatus('');
+          }, 3000);
+        } catch (error) {
+          setSaveStatus(`保存失败: ${error}`);
+          console.error('Error saving file:', error);
+        }
+      },
+      'image/png',
+      0.95
+    );
+  };
+
+  return (
+    <div className="image-editor">
+      <div className="upload-section">
+        <label className="upload-button">
+          选择图片
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="file-input"
+          />
+        </label>
+        {selectedFile && (
+          <div className="file-info">
+            <p>已选择: {selectedFile.name}</p>
+            <p>原始尺寸: {originalWidth} x {originalHeight}px</p>
+          </div>
+        )}
+      </div>
+      
+      {imageUrl && (
+        <div className="editor-container">
+          <div className="crop-container">
+            <ReactCrop
+              crop={crop}
+              onChange={(c) => setCrop(c)}
+              onComplete={(c) => setCompletedCrop(c)}
+              aspect={lockAspectRatio ? aspectRatio : undefined}
+            >
+              <img
+                src={imageUrl}
+                onLoad={onImageLoad}
+                alt="预览"
+                className="preview-image"
+              />
+            </ReactCrop>
+          </div>
+          
+          <div className="controls">
+            <div className="size-controls">
+              <div className="input-group">
+                <label>宽度 (px):</label>
+                <input
+                  type="number"
+                  value={width}
+                  onChange={handleWidthChange}
+                  min="1"
+                />
+              </div>
+              
+              <div className="input-group">
+                <label>高度 (px):</label>
+                <input
+                  type="number"
+                  value={height}
+                  onChange={handleHeightChange}
+                  min="1"
+                />
+              </div>
+              
+              <div className="checkbox-group">
+                <input
+                  type="checkbox"
+                  id="aspect-ratio"
+                  checked={lockAspectRatio}
+                  onChange={toggleAspectRatio}
+                />
+                <label htmlFor="aspect-ratio">锁定宽高比</label>
+              </div>
+            </div>
+            
+            <div className="save-section">
+              <button className="save-button" onClick={saveImage}>
+                保存图片
+              </button>
+              {saveStatus && <span className="save-status">{saveStatus}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ImageEditor; 
