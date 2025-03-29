@@ -20,7 +20,8 @@ const ImageEditor: React.FC = () => {
   const [originalWidth, setOriginalWidth] = useState<number>(0);
   const [originalHeight, setOriginalHeight] = useState<number>(0);
   const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
-  const [lockAspectRatio, setLockAspectRatio] = useState<boolean>(true); // 默认锁定宽高比
+  const [lockAspectRatio, setLockAspectRatio] = useState<boolean>(true); // 默认锁定宽高比(保存时)
+  const [cropAspectLock, setCropAspectLock] = useState<boolean>(false); // 新增：框选时的宽高比锁定
   const [saveStatus, setSaveStatus] = useState<string>('');
   const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false); // 新增：控制保存弹窗显示
   const [saveWidth, setSaveWidth] = useState<number>(0); // 新增：保存弹窗中的宽度
@@ -178,6 +179,11 @@ const ImageEditor: React.FC = () => {
         setSaveHeight(Math.round(saveWidth / cropAspectRatio));
       }
     }
+  };
+
+  // 切换框选宽高比锁定
+  const toggleCropAspectLock = () => {
+    setCropAspectLock(!cropAspectLock);
   };
 
   // 打开保存对话框
@@ -362,7 +368,7 @@ const ImageEditor: React.FC = () => {
                   setHeight(pixelCrop.height);
                 }
               }}
-              aspect={lockAspectRatio ? aspectRatio : undefined}
+              aspect={cropAspectLock ? aspectRatio : undefined}
               ruleOfThirds
             >
               <img
@@ -384,6 +390,16 @@ const ImageEditor: React.FC = () => {
               ) : (
                 <p>请在图片上拖动鼠标进行裁剪</p>
               )}
+              
+              <div className="checkbox-group crop-lock-option">
+                <input
+                  type="checkbox"
+                  id="crop-aspect-lock"
+                  checked={cropAspectLock}
+                  onChange={toggleCropAspectLock}
+                />
+                <label htmlFor="crop-aspect-lock">框选时锁定宽高比</label>
+              </div>
             </div>
             
             <div className="save-section">

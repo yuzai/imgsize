@@ -265,6 +265,12 @@
   color: #555;
 }
 
+.crop-lock-option {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e4f1;
+}
+
 /* 保存对话框 */
 .save-dialog-overlay {
   position: fixed;
