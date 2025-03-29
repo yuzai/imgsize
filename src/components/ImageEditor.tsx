@@ -19,9 +19,9 @@ const ImageEditor: React.FC = () => {
   const [height, setHeight] = useState<number>(0);
   const [originalWidth, setOriginalWidth] = useState<number>(0);
   const [originalHeight, setOriginalHeight] = useState<number>(0);
-  const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
   const [lockAspectRatio, setLockAspectRatio] = useState<boolean>(true); // 默认锁定宽高比(保存时)
   const [cropAspectLock, setCropAspectLock] = useState<boolean>(false); // 新增：框选时的宽高比锁定
+  const [cropAspectRatio, setCropAspectRatio] = useState<number | undefined>(undefined); // 新增：框选时使用的宽高比
   const [saveStatus, setSaveStatus] = useState<string>('');
   const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false); // 新增：控制保存弹窗显示
   const [saveWidth, setSaveWidth] = useState<number>(0); // 新增：保存弹窗中的宽度
@@ -108,9 +108,21 @@ const ImageEditor: React.FC = () => {
   // 当图片加载时设置宽高比
   useEffect(() => {
     if (originalWidth && originalHeight) {
-      setAspectRatio(originalWidth / originalHeight);
+      const imgRatio = originalWidth / originalHeight;
+      // 初始化框选宽高比为图片比例
+      setCropAspectRatio(imgRatio);
     }
   }, [originalWidth, originalHeight]);
+
+  // 当裁剪区域变化时更新框选宽高比
+  useEffect(() => {
+    if (completedCrop && completedCrop.width && completedCrop.height) {
+      // 计算当前裁剪区域的宽高比
+      const currentRatio = completedCrop.width / completedCrop.height;
+      // 更新框选宽高比
+      setCropAspectRatio(currentRatio);
+    }
+  }, [completedCrop]);
 
   // 处理保存弹窗中的宽度变化
   const handleSaveWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,7 +195,17 @@ const ImageEditor: React.FC = () => {
 
   // 切换框选宽高比锁定
   const toggleCropAspectLock = () => {
-    setCropAspectLock(!cropAspectLock);
+    const newLockState = !cropAspectLock;
+    setCropAspectLock(newLockState);
+    
+    // 如果启用锁定，使用当前框选区域的宽高比
+    if (newLockState && completedCrop && completedCrop.width && completedCrop.height) {
+      // 计算当前裁剪区域的宽高比
+      const currentRatio = completedCrop.width / completedCrop.height;
+      // 更新框选宽高比
+      setCropAspectRatio(currentRatio);
+      console.log('锁定框选宽高比为:', currentRatio);
+    }
   };
 
   // 打开保存对话框
@@ -368,7 +390,7 @@ const ImageEditor: React.FC = () => {
                   setHeight(pixelCrop.height);
                 }
               }}
-              aspect={cropAspectLock ? aspectRatio : undefined}
+              aspect={cropAspectLock ? cropAspectRatio : undefined}
               ruleOfThirds
             >
               <img
