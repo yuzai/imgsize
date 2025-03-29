@@ -1,4 +1,3 @@
-import React from 'react';
 import './App.css';
 import ImageEditor from './components/ImageEditor';
 
