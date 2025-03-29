@@ -36,11 +36,13 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
-      - name: 构建项目
-        run: npm run build
-        env:
-          # 如果使用Vite，通常需要设置base路径为仓库名
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Build
+        run: |
+          # 为Vite设置正确的基础路径
+          # 对于用户页面 username.github.io，使用 "/"
+          # 对于项目页面 username.github.io/repo-name，使用 "/repo-name/"
+          echo "VITE_BASE_PATH=/${GITHUB_REPOSITORY#*/}/" >> $GITHUB_ENV
+          npm run build
 
       - name: 设置GitHub Pages
         uses: actions/configure-pages@v4
