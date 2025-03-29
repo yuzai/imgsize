@@ -5,7 +5,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>图片大小编辑工具</h1>
+        <h1>图片编辑器</h1>
       </header>
       <main>
         <ImageEditor />
